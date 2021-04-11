@@ -1,0 +1,12 @@
+---
+title: "Logistic Regression"
+author: "Het Thakkar & Syed Abidi"
+date: "4/11/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
