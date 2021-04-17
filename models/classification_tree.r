@@ -1,4 +1,5 @@
-stroke.data <- read.csv("../stroke-data.csv", na.strings="N/A", stringsAsFactors = TRUE)
+#import dataset stroke-data.csv
+stroke.data <- read.csv("~/stroke-data.csv", na.strings="N/A", stringsAsFactors = TRUE)
 stroke.data = na.omit(stroke.data); stroke.data = stroke.data[-1]
 
 # Downsample stroke column to fix imbalance
