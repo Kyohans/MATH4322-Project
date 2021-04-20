@@ -7,5 +7,45 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+stroke.data <- read.csv("../stroke-data.csv", na.strings="N/A", stringsAsFactors = TRUE)
+stroke.data = na.omit(stroke.data); stroke.data = stroke.data[-1]
+stroke.data$stroke = as.factor(stroke.data$stroke)
 ```
 
+# Classification Tree Model
+
+For the classification tree, we'll use `stroke` as our response variable and all other variables (save for `id`) as our predictors. However, before we begin, notice that there appears to be a large imbalance for this classification.
+
+```{r}
+summary(stroke.data$stroke)
+```
+
+As we can see, there are more cases of patients who have not had any strokes than patients who've had strokes in the past. Fitting a tree with this unbalanced data will produce undesirable results where the prediction model will bias towards the most common class. To rectify this, we need to either oversample or undersample our data. Both approaches involve balancing the instances of both classes, but oversampling produces more instances of the uncommon class while undersampling selects a random subset out of the common class to match the number of the uncommon class. We'll perform undersampling for this model and we can utilize the `caret` library to achieve this.
+
+```{r, message = FALSE, warning=FALSE}
+library(caret)
+set.seed(5)
+stroke.data2 = downSample(stroke.data[,-c(11)], stroke.data$stroke, list = FALSE, yname = "stroke")
+```
+
+Now we can split our data into a training set and testing set with an 80-20 split to get this tree:
+
+```{r}
+train = sample(nrow(stroke.data2), round(nrow(stroke.data2)*.80))
+test.stroke = stroke.data2[-train,]
+tree.stroke = tree::tree(stroke~., data = stroke.data2, subset = train)
+```
+
+```{r, fig.align = 'center', echo = FALSE}
+plot(tree.stroke); text(tree.stroke, pretty = 1)
+summary(tree.stroke)
+```
+
+For our undersampled tree, it looks like `age`, `bmi`, `hypertension`, `avg_glucose_level`, and `smoking_status` are present in this tree. We can't determine yet which variables are more important unless we use a random forest model or bagging approach, but these variables are the ones that are used by the tree algorithm to predict the occurence of `stroke`. We have a residual mean deviance of `0.7606` and a misclassification error rate of `17.96%`. With 15 terminal nodes, we should prune the tree using cross-validation which we will do in the cross-validation section of this report. Although in the case of cross-validation, we will need to account for the new undersampled data. But for now, let's evaluate the performance of our tree by using the testing set of our data and calculating the accuracy rate.
+
+```{r}
+tree.pred = predict(tree.stroke, test.stroke, type = 'class')
+table(tree.pred, test.stroke$stroke)
+```
+
+The accuracy rate is $0.7738095 \approx$ `77.4%` and conversely a test error rate of $0.2261905 \approx$ `22.62%`. With this accuracy rate, our tree performs fairly well in predicting if a patient may be in risk of getting a stroke. However we can expect a better model through cross-validation and pruning.
