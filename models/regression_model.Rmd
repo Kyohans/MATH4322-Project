@@ -5,8 +5,119 @@ date: "4/11/2021"
 output: pdf_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+#install.packages("tidyverse")
+#install.packages("caTools")
+#install.packages("MASS")
+
+Accuracy = c(0,0,0,0,0,0,0,0,0,0)
+
+
+library(tidyverse)
+base_stroke<- read.csv("~/stroke-data.csv")
+head(base_stroke)
+
+base_stroke$Indice<-c(1:nrow(base_stroke))
+base_stroke<-base_stroke[,c(13,1:12)]
+base_stroke$ever_married<-as_factor(base_stroke$ever_married)
+base_stroke$work_type<-as_factor(base_stroke$work_type)
+base_stroke$Residence_type<-as_factor(base_stroke$Residence_type)
+base_stroke$smoking_status<-as_factor(base_stroke$smoking_status)
+
+base_stroke$stroke<-as_factor(base_stroke$stroke)
+
+base_stroke$bmi<-as.numeric(base_stroke$bmi)
+
+head(base_stroke,4)
+
+qtd_NAs<-c()
+
+for(i in 1 : length(base_stroke)){
+    
+    qtd_NAs[i]<-sum(is.na(base_stroke[,i]))
+}
+qtd_NAs
+# [1]   0   0   0   0   0   0   0   0   0   0 201   0   0
+media_bmi<-base_stroke %>% group_by(gender) %>% summarize(media_Bmi=mean(bmi,na.rm = TRUE),n=n())
+
+for(i in 1: nrow(base_stroke)){
+    if(is.na(base_stroke$bmi[i])){
+        if(base_stroke$gender[i] == "Male"){
+            base_stroke$bmi[i]<-media_bmi$media_Bmi[1]
+        }
+        if(base_stroke$gender[i] == "Female"){
+            base_stroke$bmi[i]<-media_bmi$media_Bmi[2]
+        }
+        if(base_stroke$gender[i] == "Other"){
+            base_stroke$bmi[i]<-media_bmi$media_Bmi[3]
+        }
+    }
+}
+base_stroke<-base_stroke[,-c(1:2)]
+library(caTools)
+
+div<-sample.split(Y = base_stroke$stroke,SplitRatio = 0.70)
+
+
+for(i in 1:10)
+
+{
+
+sample<-sample.int(n = nrow(base_stroke), size = floor(0.80*nrow(base_stroke)))
+base_training<-base_stroke[sample,]
+base_test<-base_stroke[-sample,]
+
+head(base_training)
+
+
+
+
+
+#```{r setup, include=FALSE}
+#knitr::opts_chunk$set(echo = TRUE)
+#```
+
+
+
+#Make a logistic regression model
+
+train.stroke = glm(stroke~.,data = base_training, family = "binomial")
+
+coef(train.stroke)
+
+
+#Use step function and choose the one with lowest value
+library(MASS)
+
+step.model<-stepAIC(train.stroke, trace = FALSE)
+
+
+#Use this to predict on the test data
+
+prediction = predict(step.model,newdata = base_test)
+
+prediction = round(exp(prediction))
+
+#Make a confusion matrix and calculate the test error 
+
+confusionMatrix<-table(base_test$stroke,prediction)
+
+
+
+accuracy<-(confusionMatrix[1] + confusionMatrix[4])/ sum(confusionMatrix)
+
+accuracy
+
+Accuracy[i] = accuracy
+
+}
+summary(train.stroke)
+confusionMatrix
+coef(step.model)
+mean(Accuracy)
+
+
+
+
+
 
 
