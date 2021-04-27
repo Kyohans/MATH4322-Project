@@ -1,0 +1,107 @@
+---
+title: "Stroke Prediction Analysis"
+author: 
+- Het Thakkar, Ali Hamza Abidi Syed, Khalyl Smith, 
+- David Oloyede, Justin Wang, & Mohammad Raihan Kapadia
+date: "Spring 2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+stroke.data <- read.csv("./stroke-data.csv", na.strings="N/A", stringsAsFactors = TRUE)
+stroke.data = na.omit(stroke.data); stroke.data = stroke.data[-1]
+stroke.data$stroke = as.factor(stroke.data$stroke)
+```
+
+# Introduction
+
+According to the World Health Organization (WHO), strokes are the 2nd leading cause of death in the world, which is responsible for approximately 11% of total deaths. In this paper, we'd like to find a better understanding to what factors cause strokes to occur in so many people every year. The dataset we will be using can be found [\textcolor{blue}{here}](https://www.kaggle.com/fedesoriano/stroke-prediction-dataset) with the following variables for our analysis (excluding `id`):
+
+* id: unique identifier
+* gender: "Male", "Female" or "Other"
+* age: age of the patient
+* hypertension: 0 if the patient doesn't have hypertension, 1 if the patient has hypertension
+* heart_disease: 0 if the patient doesn't have any heart diseases, 1 if the patient has had a heart disease
+* ever_married: "No" or "Yes"
+* work_type: "children", "Govt_jov", "Never_worked","Private" or "Self-employed"
+* Residence_type: "Rural" or "Urban"
+* avg_glucose_level: average glucose level in blood
+* bmi: body mass index
+* smoking_status: "formerly smoked", "never smoked", "smokes" or "Unknown"
+* stroke: 1 if the patient had a stroke or 0 if not
+
+We will be using `stroke` as our response variable and all other variables as our predictors to conduct our analysis. Since `stroke` is a qualitative variable, we'll use logistic regression and a classification tree model. We will also use a random forest to improve our prediction on our decision tree as well as cross-validation for the logistic regression and classification tree.
+
+## Logistic Regression (Het Thakkar, Ali Hamza Abidi Syed)
+
+## Cross-Validating Regression Model (Justin Wang, Mohammad Raihan Kapadia)
+
+## Classification Tree (Khalyl Smith)
+
+For the classification tree, we'll use `stroke` as our response variable and all other variables (save for `id`) as our predictors. However, before we begin, notice that there appears to be a large imbalance for this classification.
+
+```{r}
+summary(stroke.data$stroke)
+```
+
+As we can see, there are more cases of patients who have not had any strokes than patients who've had strokes in the past. Fitting a tree with this unbalanced data will produce undesirable results where the prediction model will bias towards the most common class. To rectify this, we need to either oversample or undersample our data. Both approaches involve balancing the instances of both classes, but oversampling produces more instances of the uncommon class while undersampling selects a random subset out of the common class to match the number of the uncommon class. We'll perform undersampling for this model and we can utilize the `caret` library to achieve this.
+
+```{r, message = FALSE, warning=FALSE}
+library(caret)
+set.seed(5)
+stroke.data2 = downSample(stroke.data[,-c(11)], stroke.data$stroke, list = FALSE, yname = "stroke")
+```
+
+Now we can split our data into a training set and testing set with an 80-20 split to get this tree:
+
+```{r}
+train = sample(nrow(stroke.data2), round(nrow(stroke.data2)*.80))
+test.stroke = stroke.data2[-train,]
+tree.stroke = tree::tree(stroke~., data = stroke.data2, subset = train)
+```
+
+```{r, fig.align = 'center', echo = FALSE}
+plot(tree.stroke); text(tree.stroke, pretty = 1)
+summary(tree.stroke)
+```
+
+For our undersampled tree, it looks like `age`, `bmi`, `hypertension`, `avg_glucose_level`, and `smoking_status` are present in this tree. We can't determine yet which variables are more important unless we use a random forest model or bagging approach, but these variables are the ones that are used by the tree algorithm to predict the occurence of `stroke`. We have a residual mean deviance of `0.7606` and a misclassification error rate of `17.96%`. With 15 terminal nodes, we should prune the tree using cross-validation which we will do in the cross-validation section of this report. Although in the case of cross-validation, we will need to account for the new undersampled data. But for now, let's evaluate the performance of our tree by using the testing set of our data and calculating the accuracy rate.
+
+```{r}
+tree.pred = predict(tree.stroke, test.stroke, type = 'class')
+table(tree.pred, test.stroke$stroke)
+```
+
+The accuracy rate is $0.7738095 \approx$ `77.4%` and conversely a test error rate of $0.2261905 \approx$ `22.62%`. With this accuracy rate, our tree performs fairly well in predicting if a patient may be in risk of getting a stroke. Let's repeat this process ten times with different subsets of training and testing data and calculate the mean of each test prediction errors.
+
+```{r, echo = FALSE}
+test.errors = NA
+
+for (i in 1:10) {
+  train = sample(nrow(stroke.data2), round(nrow(stroke.data2)*.80))
+  test.stroke = stroke.data2[-train,]
+  tree.stroke = tree::tree(stroke~., data = stroke.data2, subset = train)
+  tree.pred = predict(tree.stroke, test.stroke, type = 'class')
+
+  test.matrix = table(tree.pred, test.stroke$stroke)
+  
+  test.errors[i] = (test.matrix[2] + test.matrix[3])/(test.matrix[1] + test.matrix[2] + test.matrix[3] + test.matrix[4])
+}
+
+```
+
+After iterating ten times, we receive the following test error rates and their corresponding mean:
+
+```{r}
+test.errors
+mean(test.errors)
+```
+
+This mean of our test error rates are slightly higher than the one we received when we performed our first sampling which supports the claim that our data and model performs well in predicting if a patient is in risk of receiving a stroke. However, we still need to consider pruning for better results.
+
+## Pruning Classification Tree (Justin Wang, Mohammad Raihan Kapadia)
+
+## Random Forest (David Oloyede)
+
+## Conclusion
