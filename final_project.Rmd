@@ -39,7 +39,7 @@ We will be using `stroke` as our response variable and all other variables as ou
 
 ## Classification Tree (Khalyl Smith)
 
-For the classification tree, we'll use `stroke` as our response variable and all other variables (save for `id`) as our predictors. However, before we begin, notice that there appears to be a large imbalance for this classification.
+For the classification tree, we'll use `stroke` as our response variable and all other variables (excluding for `id`) as our predictors. However, before we begin, notice that there appears to be a large imbalance for this classification.
 
 ```{r}
 summary(stroke.data$stroke)
