@@ -14,7 +14,13 @@ stroke.data$stroke = as.factor(stroke.data$stroke)
 
 # Classification Tree Model
 
-For the classification tree, we'll use `stroke` as our response variable and all other variables (save for `id`) as our predictors. However, before we begin, notice that there appears to be a large imbalance for this classification.
+For the classification tree, we'll use `stroke` as our response variable and all other variables (excluding for `id`) as our predictors. This is the formula we will use for the classification tree:
+\begin{align*}
+& \hat{stroke} \sim gender + age + hypertension + heart\_disease + ever\_married + \\
+& work\_type + Residence\_type + avg\_glucose\_level + bmi + smoking\_status \
+\end{align*}
+
+However, before we begin, notice that there appears to be a large imbalance in our response variable.
 
 ```{r}
 summary(stroke.data$stroke)
@@ -48,4 +54,29 @@ tree.pred = predict(tree.stroke, test.stroke, type = 'class')
 table(tree.pred, test.stroke$stroke)
 ```
 
-The accuracy rate is $0.7738095 \approx$ `77.4%` and conversely a test error rate of $0.2261905 \approx$ `22.62%`. With this accuracy rate, our tree performs fairly well in predicting if a patient may be in risk of getting a stroke. However we can expect a better model through cross-validation and pruning.
+The accuracy rate is $0.7738095 \approx$ `77.4%` and conversely a test error rate of $0.2261905 \approx$ `22.62%`. With this accuracy rate, our tree performs fairly well in predicting if a patient may be in risk of getting a stroke. Let's repeat this process ten times with different subsets of training and testing data and calculate the mean of each test prediction errors.
+
+```{r, echo = FALSE}
+test.errors = NA
+
+for (i in 1:10) {
+  train = sample(nrow(stroke.data2), round(nrow(stroke.data2)*.80))
+  test.stroke = stroke.data2[-train,]
+  tree.stroke = tree::tree(stroke~., data = stroke.data2, subset = train)
+  tree.pred = predict(tree.stroke, test.stroke, type = 'class')
+
+  test.matrix = table(tree.pred, test.stroke$stroke)
+  
+  test.errors[i] = (test.matrix[2] + test.matrix[3])/(test.matrix[1] + test.matrix[2] + test.matrix[3] + test.matrix[4])
+}
+
+```
+
+After iterating ten times, we receive the following test error rates and their corresponding mean:
+
+```{r}
+test.errors
+mean(test.errors)
+```
+
+This mean of our test error rates is slightly higher than the one we received when we performed our first sampling (`22.62%`) which supports the claim that our data and model performs well in predicting if a patient is in risk of receiving a stroke. However, we still need to consider pruning for better results.
