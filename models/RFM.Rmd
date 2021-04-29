@@ -1,0 +1,104 @@
+---
+title: "RF"
+author: "David Oloyede & Khalyl Smith"
+date: "4/29/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r, message = FALSE, warning=FALSE}
+library(tidyverse)
+base_stroke<- read.csv("~/stroke-data.csv")
+head(base_stroke)
+
+base_stroke$Indice<-c(1:nrow(base_stroke))
+base_stroke<-base_stroke[,c(13,1:12)]
+base_stroke$ever_married<-as_factor(base_stroke$ever_married)
+base_stroke$work_type<-as_factor(base_stroke$work_type)
+base_stroke$Residence_type<-as_factor(base_stroke$Residence_type)
+base_stroke$smoking_status<-as_factor(base_stroke$smoking_status)
+
+base_stroke$stroke<-as_factor(base_stroke$stroke)
+
+base_stroke$bmi<-as.numeric(base_stroke$bmi)
+
+head(base_stroke,4)
+
+qtd_NAs<-c()
+
+for(i in 1 : length(base_stroke)){
+    
+    qtd_NAs[i]<-sum(is.na(base_stroke[,i]))
+}
+qtd_NAs
+
+media_bmi<-base_stroke %>% group_by(gender) %>% summarize(media_Bmi=mean(bmi,na.rm = TRUE),n=n())
+
+for(i in 1: nrow(base_stroke)){
+    if(is.na(base_stroke$bmi[i])){
+        if(base_stroke$gender[i] == "Male"){
+            base_stroke$bmi[i]<-media_bmi$media_Bmi[1]
+        }
+        if(base_stroke$gender[i] == "Female"){
+            base_stroke$bmi[i]<-media_bmi$media_Bmi[2]
+        }
+        if(base_stroke$gender[i] == "Other"){
+            base_stroke$bmi[i]<-media_bmi$media_Bmi[3]
+        }
+    }
+}
+levels(base_stroke$stroke)<-c("No stroke","Had stroke")
+```
+
+Since it is a classification task and we are predicting the reponse for stroke, we are using random forests. An advantage of random forests is that it allows for a reduction in variance, and thus lower test error, compared to both single decision trees and tree bagging as well as handling categorical, continuous, and non-linear parameters efficiently without need for scaling.First we must split data.
+Here we are splitting the database and excluding the first two columns.The data is split into training set and testing set with an 70-30 split.   
+```{r, message = FALSE, warning=FALSE}
+base_stroke<-base_stroke[,-c(1:2)]
+library(caTools)
+set.seed(10)
+div<-sample.split(Y = base_stroke$stroke,SplitRatio = 0.70)
+base_training<-subset(base_stroke,subset = div == TRUE)
+base_test<-subset(base_stroke,subset = div == FALSE)
+
+```
+
+For the random forest model, we'll use `stroke` as our response variable and all other variables (excluding for `id`) as our predictors. This is the formula we will use for the model:
+  
+stroke ∼ gender + age + hypertension + heart_disease + ever_married+
+work_type + Residence_type + avg_glucose_level + bmi + smoking_status   
+
+A longer training period and greater complexity in interpretation as a result of multiple trees is the cost of having all the advantages of the model explained previously. This model will consist of 20 trees. 
+```{r, message = FALSE, warning=FALSE}
+library(randomForest)
+```
+
+```{r}
+set.seed(1)
+model_RF<-randomForest(formula = stroke ~.,data = base_training,ntree =20)
+model_RF
+
+```
+The Random Forests had an error rate of 5.68% 
+
+
+```{r}
+prediction<-predict(model_RF,newdata = base_test[,-11])
+
+confusionMatrix<-table(base_test$stroke,prediction)
+confusionMatrix
+
+```
+
+```{r}
+accuracy<-(confusionMatrix[1] + confusionMatrix[4])/ sum(confusionMatrix)
+accuracy
+
+```
+With an accuracy rate of 95% we can see that the model is not very good however of predicting risk of having a stroke with a bias of not having a stroke. Even though random forests model are not as computationally expensive as alot of others and can reduce high variance. 
+
+
+
+
+
