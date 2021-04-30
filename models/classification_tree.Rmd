@@ -17,16 +17,10 @@ stroke.data$stroke = as.factor(stroke.data$stroke)
 For the classification tree, we'll use `stroke` as our response variable and all other variables (excluding for `id`) as our predictors. This is the formula we will use for the classification tree:
 \begin{align*}
 & \hat{stroke} \sim gender + age + hypertension + heart\_disease + ever\_married + \\
-& work\_type + Residence\_type + avg\_glucose\_level + bmi + smoking\_status \
+& work\_type + Residence\_type + avg\_glucose\_level + bmi + smoking\_status 
 \end{align*}
 
-However, before we begin, notice that there appears to be a large imbalance in our response variable.
-
-```{r}
-summary(stroke.data$stroke)
-```
-
-As we can see, there are more cases of patients who have not had any strokes than patients who've had strokes in the past. Fitting a tree with this unbalanced data will produce undesirable results where the prediction model will bias towards the most common class. To rectify this, we need to either oversample or undersample our data. Both approaches involve balancing the instances of both classes, but oversampling produces more instances of the uncommon class while undersampling selects a random subset out of the common class to match the number of the uncommon class. We'll perform undersampling for this model and we can utilize the `caret` library to achieve this.
+Just like we did for the logistic regression model, we need to undersample our data to retrieve desirable results.
 
 ```{r, message = FALSE, warning=FALSE}
 library(caret)
@@ -42,12 +36,12 @@ test.stroke = stroke.data2[-train,]
 tree.stroke = tree::tree(stroke~., data = stroke.data2, subset = train)
 ```
 
-```{r, fig.align = 'center', echo = FALSE}
+```{r, fig.align = 'center', out.height = "35%", echo = FALSE}
 plot(tree.stroke); text(tree.stroke, pretty = 1)
 summary(tree.stroke)
 ```
 
-For our undersampled tree, it looks like `age`, `bmi`, `hypertension`, `avg_glucose_level`, and `smoking_status` are present in this tree. We can't determine yet which variables are more important unless we use a random forest model or bagging approach, but these variables are the ones that are used by the tree algorithm to predict the occurence of `stroke`. We have a residual mean deviance of `0.7606` and a misclassification error rate of `17.96%`. With 15 terminal nodes, we should prune the tree using cross-validation which we will do in the cross-validation section of this report. Although in the case of cross-validation, we will need to account for the new undersampled data. But for now, let's evaluate the performance of our tree by using the testing set of our data and calculating the accuracy rate.
+For our undersampled tree, it looks like `age`, `bmi`, `hypertension`, `avg_glucose_level`, and `smoking_status` are present in this tree. We have a residual mean deviance of `0.7606` and a misclassification error rate of `17.96%`. With 15 terminal nodes, we should prune the tree using cross-validation which we will do in the cross-validation section of this report. Although in the case of cross-validation, we will need to account for the new undersampled data. But for now, let's evaluate the performance of our tree by using the testing set of our data and calculating the accuracy rate.
 
 ```{r}
 tree.pred = predict(tree.stroke, test.stroke, type = 'class')
@@ -67,7 +61,7 @@ for (i in 1:10) {
 
   test.matrix = table(tree.pred, test.stroke$stroke)
   
-  test.errors[i] = (test.matrix[2] + test.matrix[3])/(test.matrix[1] + test.matrix[2] + test.matrix[3] + test.matrix[4])
+  test.errors[i] = (test.matrix[2] + test.matrix[3])/sum(test.matrix)
 }
 
 ```
@@ -80,3 +74,5 @@ mean(test.errors)
 ```
 
 This mean of our test error rates is slightly higher than the one we received when we performed our first sampling (`22.62%`) which supports the claim that our data and model performs well in predicting if a patient is in risk of receiving a stroke. However, we still need to consider pruning for better results.
+
+Compared to the logistic regression model's mean of test error rates, `25%`, our tree model performs slightly better than the logistic regression approach.

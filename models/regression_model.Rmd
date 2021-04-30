@@ -5,8 +5,117 @@ date: "4/11/2021"
 output: pdf_document
 ---
 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
 ```
+## Logistic Regression Model
+
+For the Logistic Regression model, we will use `stroke` as our response variable, and all other variables (excluding `id`) that is `gender`, `age`, `hypertension`, `heart_disease`, `ever_married`, `work_type`, `Residence_type`, `avg_glucose_level`, `bmi`, `smoking_status` as our predictors. The formula we will use for the Logistic Regression is displayed below:
+
+
+Here $p = P(stroke = 1)$, so
+
+$$
+p = \frac{exp^{\beta_0 + \beta_1 *gender + \beta_2 *age + \beta_3 *hypertension + \beta_4 *heart\_disease + \beta_5 *ever\_married + \beta_6 *work\_type + \beta_7 *Residence\_type + \beta_8 *avg\_glucose\_level + \beta_9 *bmi + \beta_10 *smoking\_status}} {1 + exp^{\beta_0 + \beta_1 *gender + \beta_2 *age + \beta_3 *hypertension + \beta_4 *heart\_disease + \beta_5 *ever\_married + \beta_6 *work\_type + \beta_7 *Residence\_type + \beta_8 *avg\_glucose\_level + \beta_9 *bmi + \beta_10 *smoking\_status}}
+$$
+
+
+
+
+```{r, include=FALSE}
+base_stroke<- read.csv("../stroke-data.csv", na.strings="N/A", stringsAsFactors = TRUE)
+base_stroke$stroke<-as.factor(base_stroke$stroke)
+base_stroke = na.omit(base_stroke); base_stroke = base_stroke[-1]
+```
+
+Before we create the model, notice how there is an imbalance within our response variable:
+```{r}
+summary(base_stroke$stroke)
+```
+
+As we can see, there are more cases of patients who have not had any strokes than patients who've had strokes in the past. Fitting a tree with this unbalanced data will produce undesirable results where the prediction model will bias towards the most common class. To rectify this, we need to either oversample or undersample our data. Both approaches involve balancing the instances of both classes, but oversampling produces more instances of the uncommon class while undersampling selects a random subset out of the common class to match the number of the uncommon class. We'll perform undersampling for this model and we can utilize the `caret` library to achieve this.
+
+```{r, warning = FALSE, message = FALSE}
+library(caret)
+set.seed(5)
+base_stroke = downSample(base_stroke[,-c(11)], base_stroke$stroke, list = FALSE, yname = "stroke")
+```
+
+Now we can split our data into a training set and testing set with an 80-20 split to get this model:
+
+```{r}
+set.seed(5)
+sample<-sample.int(n = nrow(base_stroke), size = floor(0.80*nrow(base_stroke)))
+base_training<-base_stroke[sample,]
+base_test<-base_stroke[-sample,]
+```
+
+
+The R-code below estimates a logistic regression model using the glm (generalized linear model) function.
+```{r, warning = FALSE, message = FALSE}
+train.stroke = glm(stroke~.,data = base_training, family = "binomial")
+summary(train.stroke)
+```
+
+
+```{r, message = FALSE, warning = FALSE}
+library(MASS)
+step.model<-stepAIC(train.stroke, trace = FALSE)
+coef(step.model)
+```
+
+It looks like `age, hypertension, and work_type` are the most important variables in our model.
+
+Now let’s evaluate the performance of our model by using the testing
+set of our data and calculating the test error rate and accuracy rate.
+```{r, warning = FALSE}
+prediction = predict.glm(train.stroke, newdata = base_test, type = "response")
+had.stroke = prediction > 0.5
+
+confusionMatrix<-table(base_test$stroke, had.stroke)
+confusionMatrix
+
+testerror<-(confusionMatrix[2] + confusionMatrix[3])/(sum(confusionMatrix))
+testerror
+```
+
+The test error rate is $0.25 = 25\%$ and conversely an accuracy rate of $0.75 = 75\%$. With this accuracy rate, our tree performs well in predicting if a patient may be in risk of getting a stroke. Let’s repeat this process ten times with different subsets of training and testing data and calculate the mean of each test prediction errors. After iterating ten times, we receive the following test error rates and their corresponding mean:
+
+```{r, include=FALSE}
+testerrors = NA
+for (i in 1:10) {
+
+  sample<-sample.int(n = nrow(base_stroke), size = floor(0.80*nrow(base_stroke)))
+  base_training<-base_stroke[sample,]
+  base_test<-base_stroke[-sample,]
+  train.stroke = glm(stroke~.,data = base_training, family = "binomial")
+  
+  prediction = predict(train.stroke ,newdata = base_test)
+  had.stroke = prediction > 0.5
+  confusionMatrix<-table(base_test$stroke, had.stroke)
+
+  testerrors[i]<-(confusionMatrix[2] + confusionMatrix[3])/ sum(confusionMatrix)
+
+}
+```
+
+```{r, echo=TRUE}
+testerrors
+mean(testerrors)
+```
+
+This mean of our test error rates is $0.272619 \approx 27.2\%$ which is just slightly lower than the one we received when we performed our first sampling $(28.57\%)$ which supports the claim that our data and model performs well in predicting if a patient is in risk of receiving a stroke.
+
+Next let's study the model without dividing the data into test and training error for better interpretation.
+```{r, warning = FALSE}
+total.stroke = glm(stroke~.,data = base_stroke, family = "binomial")
+step.model<-stepAIC(total.stroke, trace = FALSE)
+coef(step.model)
+```
+
+Interpretation: We can see from the  fitting of the whole data and predicting stroke that the most important thing in predicting strokes is the  patient's age and the glucose level come next if we look at the t-statistics. Now to determine which predictors are more important than the other we  use the step function and use the AIC metric to see that the most important or significant predictors are: `age, genderMale, hypertension, work_type, and bmi` which is somewhat consistent with the training data we fit earlier.
+
 
 

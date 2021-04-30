@@ -35,17 +35,119 @@ We will be using `stroke` as our response variable and all other variables as ou
 
 ## Logistic Regression (Het Thakkar, Ali Hamza Abidi Syed)
 
+For the Logistic Regression model, we will use `stroke` as our response variable, and all other variables (excluding `id`) that is `gender`, `age`, `hypertension`, `heart_disease`, `ever_married`, `work_type`, `Residence_type`, `avg_glucose_level`, `bmi`, `smoking_status` as our predictors. The formula we will use for the Logistic Regression is displayed below:
+
+Here $p = P(stroke = 1)$, so
+
+$$
+p = \frac{exp^{\beta_0 + \beta_1 *gender + \beta_2 *age + \beta_3 *hypertension + \beta_4 *heart\_disease + \beta_5 *ever\_married + \beta_6 *work\_type + \beta_7 *Residence\_type + \beta_8 *avg\_glucose\_level + \beta_9 *bmi + \beta_10 *smoking\_status}} {1 + exp^{\beta_0 + \beta_1 *gender + \beta_2 *age + \beta_3 *hypertension + \beta_4 *heart\_disease + \beta_5 *ever\_married + \beta_6 *work\_type + \beta_7 *Residence\_type + \beta_8 *avg\_glucose\_level + \beta_9 *bmi + \beta_10 *smoking\_status}}
+$$
+
+
+```{r, include=FALSE}
+base_stroke<- read.csv("../stroke-data.csv", na.strings="N/A", stringsAsFactors = TRUE)
+base_stroke$stroke<-as.factor(base_stroke$stroke)
+base_stroke = na.omit(base_stroke); base_stroke = base_stroke[-1]
+```
+
+Before we create the model, notice how there is an imbalance within our response variable:
+```{r}
+summary(base_stroke$stroke)
+```
+
+As we can see, there are more cases of patients who have not had any strokes than patients who've had strokes in the past. Fitting a tree with this unbalanced data will produce undesirable results where the prediction model will bias towards the most common class. To rectify this, we need to either oversample or undersample our data. Both approaches involve balancing the instances of both classes, but oversampling produces more instances of the uncommon class while undersampling selects a random subset out of the common class to match the number of the uncommon class. We'll perform undersampling for this model and we can utilize the `caret` library to achieve this.
+
+```{r, warning = FALSE, message = FALSE}
+library(caret)
+set.seed(5)
+base_stroke = downSample(base_stroke[,-c(11)], base_stroke$stroke, list = FALSE, yname = "stroke")
+```
+
+Now we can split our data into a training set and testing set with an 80-20 split to get this model:
+
+```{r}
+set.seed(5)
+sample<-sample.int(n = nrow(base_stroke), size = floor(0.80*nrow(base_stroke)))
+base_training<-base_stroke[sample,]
+base_test<-base_stroke[-sample,]
+```
+
+
+The R-code below estimates a logistic regression model using the glm (generalized linear model) function.
+```{r, warning = FALSE, message = FALSE}
+train.stroke = glm(stroke~.,data = base_training, family = "binomial")
+summary(train.stroke)
+```
+
+
+```{r, message = FALSE, warning = FALSE}
+library(MASS)
+step.model<-stepAIC(train.stroke, trace = FALSE)
+coef(step.model)
+```
+
+It looks like `age, hypertension, and work_type` are the most important variables in our model.
+
+Now let’s evaluate the performance of our model by using the testing
+set of our data and calculating the test error rate and accuracy rate.
+```{r, warning = FALSE}
+prediction = predict.glm(train.stroke, newdata = base_test, type = "response")
+had.stroke = prediction > 0.5
+
+confusionMatrix<-table(base_test$stroke, had.stroke)
+confusionMatrix
+
+testerror<-(confusionMatrix[2] + confusionMatrix[3])/(sum(confusionMatrix))
+testerror
+```
+
+The test error rate is $0.25 = 25\%$ and conversely an accuracy rate of $0.75 = 75\%$. With this accuracy rate, our tree performs well in predicting if a patient may be in risk of getting a stroke. Let’s repeat this process ten times with different subsets of training and testing data and calculate the mean of each test prediction errors. After iterating ten times, we receive the following test error rates and their corresponding mean:
+
+```{r, include=FALSE}
+testerrors = NA
+for (i in 1:10) {
+
+  sample<-sample.int(n = nrow(base_stroke), size = floor(0.80*nrow(base_stroke)))
+  base_training<-base_stroke[sample,]
+  base_test<-base_stroke[-sample,]
+  train.stroke = glm(stroke~.,data = base_training, family = "binomial")
+  
+  prediction = predict(train.stroke ,newdata = base_test)
+  had.stroke = prediction > 0.5
+  confusionMatrix<-table(base_test$stroke, had.stroke)
+
+  testerrors[i]<-(confusionMatrix[2] + confusionMatrix[3])/ sum(confusionMatrix)
+
+}
+```
+
+```{r, echo=TRUE}
+testerrors
+mean(testerrors)
+```
+
+This mean of our test error rates is $0.272619 \approx 27.2\%$ which is just slightly lower than the one we received when we performed our first sampling $(28.57\%)$ which supports the claim that our data and model performs well in predicting if a patient is in risk of receiving a stroke.
+
+Next let's study the model without dividing the data into test and training error for better interpretation.
+```{r, warning = FALSE}
+total.stroke = glm(stroke~.,data = base_stroke, family = "binomial")
+step.model<-stepAIC(total.stroke, trace = FALSE)
+coef(step.model)
+```
+
+Interpretation: We can see from the  fitting of the whole data and predicting stroke that the most important thing in predicting strokes is the  patient's age and the glucose level come next if we look at the t-statistics. Now to determine which predictors are more important than the other we  use the step function and use the AIC metric to see that the most important or significant predictors are: `age, genderMale, hypertension, work_type, and bmi` which is somewhat consistent with the training data we fit earlier.
+
 ## Cross-Validating Regression Model (Justin Wang, Mohammad Raihan Kapadia)
 
 ## Classification Tree (Khalyl Smith)
 
-For the classification tree, we'll use `stroke` as our response variable and all other variables (excluding for `id`) as our predictors. However, before we begin, notice that there appears to be a large imbalance for this classification.
+For the classification tree, we'll use `stroke` as our response variable and all other variables (excluding for `id`) as our predictors. This is the formula we will use for the classification tree:
+\begin{align*}
+& \hat{stroke} \sim gender + age + hypertension + heart\_disease + ever\_married + \\
+& work\_type + Residence\_type + avg\_glucose\_level + bmi + smoking\_status 
+\end{align*}
 
-```{r}
-summary(stroke.data$stroke)
-```
-
-As we can see, there are more cases of patients who have not had any strokes than patients who've had strokes in the past. Fitting a tree with this unbalanced data will produce undesirable results where the prediction model will bias towards the most common class. To rectify this, we need to either oversample or undersample our data. Both approaches involve balancing the instances of both classes, but oversampling produces more instances of the uncommon class while undersampling selects a random subset out of the common class to match the number of the uncommon class. We'll perform undersampling for this model and we can utilize the `caret` library to achieve this.
+Just like we did for the logistic regression model, we need to undersample our data to retrieve desirable results.
 
 ```{r, message = FALSE, warning=FALSE}
 library(caret)
@@ -61,12 +163,12 @@ test.stroke = stroke.data2[-train,]
 tree.stroke = tree::tree(stroke~., data = stroke.data2, subset = train)
 ```
 
-```{r, fig.align = 'center', echo = FALSE}
+```{r, fig.align = 'center', out.height = "35%", echo = FALSE}
 plot(tree.stroke); text(tree.stroke, pretty = 1)
 summary(tree.stroke)
 ```
 
-For our undersampled tree, it looks like `age`, `bmi`, `hypertension`, `avg_glucose_level`, and `smoking_status` are present in this tree. We can't determine yet which variables are more important unless we use a random forest model or bagging approach, but these variables are the ones that are used by the tree algorithm to predict the occurence of `stroke`. We have a residual mean deviance of `0.7606` and a misclassification error rate of `17.96%`. With 15 terminal nodes, we should prune the tree using cross-validation which we will do in the cross-validation section of this report. Although in the case of cross-validation, we will need to account for the new undersampled data. But for now, let's evaluate the performance of our tree by using the testing set of our data and calculating the accuracy rate.
+For our undersampled tree, it looks like `age`, `bmi`, `hypertension`, `avg_glucose_level`, and `smoking_status` are present in this tree. We have a residual mean deviance of `0.7606` and a misclassification error rate of `17.96%`. With 15 terminal nodes, we should prune the tree using cross-validation which we will do in the cross-validation section of this report. Although in the case of cross-validation, we will need to account for the new undersampled data. But for now, let's evaluate the performance of our tree by using the testing set of our data and calculating the accuracy rate.
 
 ```{r}
 tree.pred = predict(tree.stroke, test.stroke, type = 'class')
@@ -86,7 +188,7 @@ for (i in 1:10) {
 
   test.matrix = table(tree.pred, test.stroke$stroke)
   
-  test.errors[i] = (test.matrix[2] + test.matrix[3])/(test.matrix[1] + test.matrix[2] + test.matrix[3] + test.matrix[4])
+  test.errors[i] = (test.matrix[2] + test.matrix[3])/sum(test.matrix)
 }
 
 ```
@@ -98,10 +200,80 @@ test.errors
 mean(test.errors)
 ```
 
-This mean of our test error rates are slightly higher than the one we received when we performed our first sampling which supports the claim that our data and model performs well in predicting if a patient is in risk of receiving a stroke. However, we still need to consider pruning for better results.
+This mean of our test error rates is slightly higher than the one we received when we performed our first sampling (`22.62%`) which supports the claim that our data and model performs well in predicting if a patient is in risk of receiving a stroke. However, we still need to consider pruning for better results.
+
+Compared to the logistic regression model's mean of test error rates, `25%`, our tree model performs slightly better than the logistic regression approach.
 
 ## Pruning Classification Tree (Justin Wang, Mohammad Raihan Kapadia)
 
 ## Random Forest (David Oloyede)
+
+```{r, message = FALSE, warning=FALSE, echo = FALSE}
+library(tidyverse)
+base_stroke<- read.csv("../stroke-data.csv", na.strings="N/A", stringsAsFactors = TRUE)
+
+base_stroke = na.omit(base_stroke); base_stroke = base_stroke[-1]
+base_stroke$stroke<-as_factor(base_stroke$stroke)
+base_stroke$bmi<-as.numeric(base_stroke$bmi)
+levels(base_stroke$stroke)<-c("No stroke","Had stroke")
+```
+
+Since it is a classification task and we are predicting the response for stroke, we are using random forests. An advantage of random forests is that it allows for a reduction in variance, and thus lower test error, compared to both single decision trees and tree bagging as well as handling categorical, continuous, and non-linear parameters efficiently without need for scaling. First we must split data. The data is split into training set and testing set with an 80-20 split.
+
+```{r, message = FALSE, warning=FALSE}
+library(caTools)
+set.seed(10)
+div<-sample.split(Y = base_stroke$stroke,SplitRatio = 0.80)
+base_training<-subset(base_stroke,subset = div == TRUE)
+base_test<-subset(base_stroke,subset = div == FALSE)
+```
+
+For the random forest model, we'll use `stroke` as our response variable and all other variables (excluding for `id`) as our predictors. This is the formula we will use for the model:
+  
+\begin{align*}
+& \hat{stroke} \sim gender + age + hypertension + heart\_disease + ever\_married + \\
+& work\_type + Residence\_type + avg\_glucose\_level + bmi + smoking\_status
+\end{align*}
+
+A longer training period and greater complexity in interpretation as a result of multiple trees is the cost of having all the advantages of the model explained previously. This model will consist of 20 trees. 
+```{r, message = FALSE, warning=FALSE, out.width = "75%", fig.align='center'}
+library(randomForest)
+set.seed(1)
+(model_RF<-randomForest(formula = stroke ~.,data = base_training,ntree =20))
+varImpPlot(model_RF)
+```
+Our model has and error rate estimate of $4.99\%$ and it looks like the most important models here are `avg_glucose_level, bmi, and age`, which is much different from the important variables from the training models earlier. 
+
+
+```{r}
+prediction<-predict(model_RF,newdata = base_test[,-12])
+
+(confusionMatrix<-table(base_test$stroke,prediction))
+(accuracy.rate<-(confusionMatrix[1] + confusionMatrix[4])/ sum(confusionMatrix))
+```
+With an accuracy rate of $95.5\%$ we can see that the model is not very good however of predicting risk of having a stroke with a bias of not having a stroke. Even though random forests model are not as computationally expensive as a lot of others and can reduce high variance. Let's try splitting the data again ten times to retrieve the mean of the test error rates.
+
+```{r, echo = FALSE}
+test.errors = NA
+
+for(i in 1:10) {
+  div<-sample.split(Y = base_stroke$stroke,SplitRatio = 0.80)
+  base_training<-subset(base_stroke,subset = div == TRUE)
+  base_test<-subset(base_stroke,subset = div == FALSE)
+  model_RF<-randomForest(formula = stroke ~.,data = base_training,ntree =20)
+  
+  prediction<-predict(model_RF,newdata = base_test[,-12])
+  confusionMatrix<-table(base_test$stroke,prediction)
+  
+  test.errors[i] = (confusionMatrix[2] + confusionMatrix[3])/sum(confusionMatrix)
+}
+```
+
+```{r}
+test.errors
+mean(test.errors)
+```
+
+With a test error rate average of $4.43\%$ and conversely an average accuracy rate of $95.57\%$, our random forest model performs poorly with the heavy imbalance of the `stroke` classification. To properly analyze this data, we do in fact have to consider oversampling or undersampling the data.
 
 ## Conclusion
