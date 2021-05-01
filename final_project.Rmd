@@ -206,6 +206,37 @@ Compared to the logistic regression model's mean of test error rates, `25%`, our
 
 ## Pruning Classification Tree (Justin Wang, Mohammad Raihan Kapadia)
 
+We need to prune our classification tree since it's not viable to interpret a tree with 15 terminal nodes.
+
+```{r, warning = FALSE, message = FALSE, fig.align = 'center', out.width = "75%"}
+set.seed(3)
+library(tree)
+cv.stroke = cv.tree(tree.stroke, FUN = prune.misclass)
+plot(cv.stroke$size, cv.stroke$dev, type = "b")
+```
+
+It looks like four nodes can lead us to better results, but maybe six nodes is more efficient.
+
+```{r, echo = FALSE, fig.align = 'center', out.width = "85%"}
+par(mfrow = c(1, 2))
+prune4 = prune.misclass(tree.stroke, best = 4)
+plot(prune4); text(prune4, pretty = 0)
+
+prune6 = prune.misclass(tree.stroke, best = 6)
+plot(prune6); text(prune6, pretty = 0)
+```
+
+Both are good trees, but we'll choose six nodes because it considers two more variables for predicting `stroke` as opposed to four nodes only using `age` and `avg_glucose_level`.
+
+```{r}
+summary(prune6)
+prune.pred = predict(prune6, test.stroke, type = "class")
+(prune.table = table(prune.pred, test.stroke$stroke))
+(test.error = (prune.table[2] + prune.table[3])/(sum(prune.table)))
+```
+
+The test error rate is $0.2380952 \approx 23.8\%$, which is a little higher than the test error rate of the first tree. This small increase in the test error rate is not a detriment to our data. We can predict `stroke` better using this pruned tree over our original tree.
+
 ## Random Forest (David Oloyede)
 
 ```{r, message = FALSE, warning=FALSE, echo = FALSE}
