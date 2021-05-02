@@ -117,5 +117,23 @@ coef(step.model)
 
 Interpretation: We can see from the  fitting of the whole data and predicting stroke that the most important thing in predicting strokes is the  patient's age and the glucose level come next if we look at the t-statistics. Now to determine which predictors are more important than the other we  use the step function and use the AIC metric to see that the most important or significant predictors are: `age, genderMale, hypertension, work_type, and bmi` which is somewhat consistent with the training data we fit earlier.
 
+# K-Fold CV
+
+We'll use K-Fold Cross Validation to find the validation error rate for our model. We considered Leave-One-Out Cross-Validation but that algorithm is too demanding for the size of our data even through downsampling. Let K = 10, we'll calculate the mean CV error over ten repetitions
+
+```{r, warning = FALSE, message = FALSE}
+library(boot)
+cv.errors = NA
+cost = function(stroke, pi = 0) mean(abs(stroke - pi) > 0.5)
+
+for(i in 1:10) {
+  glm.fit = glm(stroke~., family = "binomial", data = base_stroke)
+  cv.errors[i] = cv.glm(base_stroke, glm.fit, cost, K = 10)$delta[1]
+}
+cv.errors
+mean(cv.errors)
+```
+
+The result of these repetitions gives us a mean validation error rate of $0.234689 \approx 23.46\%$ which suggests that this model is a sufficient fit for our data.
 
 

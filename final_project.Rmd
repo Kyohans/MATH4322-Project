@@ -139,6 +139,24 @@ Interpretation: We can see from the  fitting of the whole data and predicting st
 
 ## Cross-Validating Regression Model (Justin Wang, Mohammad Raihan Kapadia)
 
+We'll use K-Fold Cross Validation to find the validation error rate for our model. We considered Leave-One-Out Cross-Validation but that algorithm is too demanding for the size of our data even through downsampling. Let K = 10, we'll calculate the mean CV error over ten repetitions
+
+```{r, warning = FALSE, message = FALSE}
+library(boot)
+set.seed(5)
+cv.errors = NA
+cost = function(stroke, pi = 0) mean(abs(stroke - pi) > 0.5)
+
+for(i in 1:10) {
+  glm.fit = glm(stroke~., family = "binomial", data = base_stroke)
+  cv.errors[i] = cv.glm(base_stroke, glm.fit, cost, K = 10)$delta[1]
+}
+cv.errors
+mean(cv.errors)
+```
+
+The result of these repetitions gives us a mean validation error rate of $0.2318182 \approx 23.18\%$ which suggests that this model is a sufficient fit for our data.
+
 ## Classification Tree (Khalyl Smith)
 
 For the classification tree, we'll use `stroke` as our response variable and all other variables (excluding for `id`) as our predictors. This is the formula we will use for the classification tree:
@@ -308,3 +326,5 @@ mean(test.errors)
 With a test error rate average of $4.43\%$ and conversely an average accuracy rate of $95.57\%$, our random forest model performs poorly with the heavy imbalance of the `stroke` classification. To properly analyze this data, we do in fact have to consider oversampling or undersampling the data.
 
 ## Conclusion
+
+Our models perform relatively well in predicting what factors can lead to a patient having a stroke. The random forest model struggles to predict accurately due to the large imbalance in our dataset. In terms of predictive performance, the logistic regression model outperforms the classification tree for this problem, especially after performing cross-validation. For interpretation, the classification tree is very efficient in interpreting our data. With the tree, we can see what combination of variables and values can potentially lead to a patient having a stroke.
